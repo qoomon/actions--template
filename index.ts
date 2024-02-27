@@ -1,19 +1,20 @@
 import * as core from '@actions/core'
-import {exec, getInput, getYamlInput, run} from './lib/actions'
 import * as github from '@actions/github'
+import {HttpClient} from '@actions/http-client'
+import * as action from './lib/actions'
 // see https://github.com/actions/toolkit for more github actions libraries
 import {z} from 'zod'
 
 const context = github.context
 const input = {
-  token: getInput('token', {required: true})!,
-  string: getInput('stringInput'),
+  token: core.getInput('token', {required: true})!,
+  string: core.getInput('stringInput'),
   yaml: z.optional(z.array(z.string())).default([])
-      .parse(getYamlInput('yamlInput')),
+      .parse(action.getYamlInput('yamlInput')),
 }
 const octokit = github.getOctokit(input.token)
 
-run(async () => {
+action.run(async () => {
   await octokit.rest.issues.create({
     owner: context.repo.owner,
     repo: context.repo.repo,
@@ -21,11 +22,18 @@ run(async () => {
     body: 'This is a new issue',
   })
 
-  await exec('echo')
-      .then(({stdout}) => stdout.trim())
+  const httpClient = new HttpClient()
+  httpClient.get('https://api.github.com').then((response) => {
+    core.info(`HTTP response: ${response.message.statusCode}`)
+  })
 
-  core.setSecret('secret')
-  core.setOutput('foo', 'bar')
-  core.info('Hello world!')
+  const result = await action.exec('echo', ['Hello world!'])
+      .then(({stdout}) => stdout.toString())
+
+  // core.setSecret(value) will mask the value in logs
+  core.setSecret('secretXXX')
+  core.info(result)
   // core.setFailed('This is a failure')
+  // core.setOutput(key,value) will set the value of an output
+  core.setOutput('stringOutput', result)
 })

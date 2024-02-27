@@ -5,6 +5,9 @@ import { createRequire as __WEBPACK_EXTERNAL_createRequire } from "module";
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 
+
+
+
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
@@ -33729,7 +33732,7 @@ class Document {
             replacer = undefined;
         }
         const { aliasDuplicateObjects, anchorPrefix, flow, keepUndefined, onTagObj, tag } = options ?? {};
-        const { onAnchor, setAnchors, sourceObjects } = anchors.createNodeAnchors(this, 
+        const { onAnchor, setAnchors, sourceObjects } = anchors.createNodeAnchors(this,
         // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
         anchorPrefix || 'a');
         const ctx = {
@@ -40264,7 +40267,7 @@ exports.visitAsync = visitAsync;
 /************************************************************************/
 /******/ // The module cache
 /******/ var __webpack_module_cache__ = {};
-/******/ 
+/******/
 /******/ // The require function
 /******/ function __nccwpck_require__(moduleId) {
 /******/ 	// Check if module is in cache
@@ -40278,7 +40281,7 @@ exports.visitAsync = visitAsync;
 /******/ 		// no module.loaded needed
 /******/ 		exports: {}
 /******/ 	};
-/******/ 
+/******/
 /******/ 	// Execute the module function
 /******/ 	var threw = true;
 /******/ 	try {
@@ -40287,45 +40290,16 @@ exports.visitAsync = visitAsync;
 /******/ 	} finally {
 /******/ 		if(threw) delete __webpack_module_cache__[moduleId];
 /******/ 	}
-/******/ 
+/******/
 /******/ 	// Return the exports of the module
 /******/ 	return module.exports;
 /******/ }
-/******/ 
+/******/
 /************************************************************************/
-/******/ /* webpack/runtime/compat get default export */
-/******/ (() => {
-/******/ 	// getDefaultExport function for compatibility with non-harmony modules
-/******/ 	__nccwpck_require__.n = (module) => {
-/******/ 		var getter = module && module.__esModule ?
-/******/ 			() => (module['default']) :
-/******/ 			() => (module);
-/******/ 		__nccwpck_require__.d(getter, { a: getter });
-/******/ 		return getter;
-/******/ 	};
-/******/ })();
-/******/ 
-/******/ /* webpack/runtime/define property getters */
-/******/ (() => {
-/******/ 	// define getter functions for harmony exports
-/******/ 	__nccwpck_require__.d = (exports, definition) => {
-/******/ 		for(var key in definition) {
-/******/ 			if(__nccwpck_require__.o(definition, key) && !__nccwpck_require__.o(exports, key)) {
-/******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
-/******/ 			}
-/******/ 		}
-/******/ 	};
-/******/ })();
-/******/ 
-/******/ /* webpack/runtime/hasOwnProperty shorthand */
-/******/ (() => {
-/******/ 	__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
-/******/ })();
-/******/ 
 /******/ /* webpack/runtime/compat */
-/******/ 
+/******/
 /******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = new URL('.', import.meta.url).pathname.slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
-/******/ 
+/******/
 /************************************************************************/
 var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
@@ -40333,16 +40307,15 @@ var __webpack_exports__ = {};
 
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(2186);
-var core_default = /*#__PURE__*/__nccwpck_require__.n(core);
 // EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
-var lib_github = __nccwpck_require__(5438);
-// EXTERNAL MODULE: ./node_modules/yaml/dist/index.js
-var dist = __nccwpck_require__(4083);
+var github = __nccwpck_require__(5438);
 // EXTERNAL MODULE: ./node_modules/@actions/http-client/lib/index.js
 var lib = __nccwpck_require__(6255);
 // EXTERNAL MODULE: ./node_modules/@actions/exec/lib/exec.js
 var exec = __nccwpck_require__(1514);
-;// CONCATENATED MODULE: ./lib/github-actions-utils.ts
+// EXTERNAL MODULE: ./node_modules/yaml/dist/index.js
+var dist = __nccwpck_require__(4083);
+;// CONCATENATED MODULE: ./lib/actions.ts
 
 
 
@@ -40392,23 +40365,29 @@ function getYamlInput(name, options) {
 /**
  * Execute a command and get the output.
  * @param commandLine - command to execute (can include additional args). Must be correctly escaped.
+ * @param args - optional command arguments.
  * @param options - optional exec options. See ExecOptions
  * @returns status, stdout and stderr
  */
-async function github_actions_utils_exec(commandLine, options) {
-    const result = { status: 0, stdout: '', stderr: '' };
-    result.status = await exec.exec(commandLine, undefined, {
+async function actions_exec(commandLine, args, options) {
+    const stdoutChunks = [];
+    const stderrChunks = [];
+    const status = await exec.exec(commandLine, args, {
         ...options,
         listeners: {
             stdout(data) {
-                result.stdout += data.toString();
+                stdoutChunks.push(data);
             },
             stderr(data) {
-                result.stderr += data.toString();
+                stderrChunks.push(data);
             },
         },
     });
-    return result;
+    return {
+        status,
+        stdout: Buffer.concat(stdoutChunks),
+        stderr: Buffer.concat(stderrChunks),
+    };
 }
 
 ;// CONCATENATED MODULE: ./node_modules/zod/lib/index.mjs
@@ -44194,7 +44173,7 @@ ZodReadonly.create = (type, params) => {
         ...processCreateParams(params),
     });
 };
-const custom = (check, params = {}, 
+const custom = (check, params = {},
 /**
  * @deprecated
  *
@@ -44434,30 +44413,36 @@ var z = /*#__PURE__*/Object.freeze({
 
 
 
+
 // see https://github.com/actions/toolkit for more github actions libraries
 
+const context = github.context;
+const input = {
+    token: core.getInput('token', { required: true }),
+    string: core.getInput('stringInput'),
+    yaml: z.optional(z.array(z.string())).default([])
+        .parse(getYamlInput('yamlInput')),
+};
+const octokit = github.getOctokit(input.token);
 run(async () => {
-    const context = lib_github.context;
-    const input = {
-        token: getInput('token', { required: true }),
-        string: getInput('stringInput'),
-        yaml: z.optional(z.array(z.string())).default([])
-            .parse(getYamlInput('yamlInput')),
-    };
-    const github = lib_github.getOctokit(input.token);
-    // --------------------------------------------------------------------------
-    await github.rest.issues.create({
+    await octokit.rest.issues.create({
         owner: context.repo.owner,
         repo: context.repo.repo,
         title: 'New issue',
         body: 'This is a new issue',
     });
-    await github_actions_utils_exec('echo')
-        .then(({ stdout }) => stdout.trim());
-    core_default().setSecret('secret');
-    core_default().setOutput('foo', 'bar');
-    core_default().info('Hello world!');
+    const httpClient = new lib.HttpClient();
+    httpClient.get('https://api.github.com').then(response => {
+        core.info(`HTTP response: ${response.message.statusCode}`);
+    });
+    const result = await actions_exec('echo', ['Hello world!'])
+        .then(({ stdout }) => stdout.toString());
+    // core.setSecret(value) will mask the value in logs
+    core.setSecret('secretXXX');
+    core.info(result);
     // core.setFailed('This is a failure')
+    // core.setOutput(key,value) will set the value of an output
+    core.setOutput('stringOutput', result);
 });
 
 })();

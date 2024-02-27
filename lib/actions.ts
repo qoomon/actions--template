@@ -1,9 +1,7 @@
 import * as core from '@actions/core'
-import {InputOptions} from '@actions/core'
-import YAML from 'yaml'
-import {HttpClientError} from '@actions/http-client'
+import * as httpClient from '@actions/http-client'
 import * as _exec from '@actions/exec'
-import {ExecOptions} from '@actions/exec'
+import YAML from 'yaml'
 
 /**
  * Run action and catch errors
@@ -14,7 +12,7 @@ export function run(action: () => Promise<void>): void {
   action().catch(async (error: unknown) => {
     core.setFailed('Unhandled error, see job logs')
     console.error('Error:', error)
-    if (error instanceof HttpClientError) {
+    if (error instanceof httpClient.HttpClientError) {
       console.error('Http response:', error.result)
     }
   })
@@ -29,7 +27,7 @@ export function run(action: () => Promise<void>): void {
  * @param     options  optional. See InputOptions.
  * @returns   parsed input as object
  */
-export function getInput(name: string, options?: InputOptions): string | null {
+export function getInput(name: string, options?: core.InputOptions): string | null {
   return core.getInput(name, options) || null
 }
 
@@ -43,7 +41,7 @@ export function getInput(name: string, options?: InputOptions): string | null {
  * @param     options  optional. See InputOptions.
  * @returns   parsed input as object
  */
-export function getYamlInput(name: string, options?: InputOptions): any | null {
+export function getYamlInput(name: string, options?: core.InputOptions): any | null {
   const input = getInput(name, options)
   if (input === null) return null
   return YAML.parse(input)
@@ -52,21 +50,33 @@ export function getYamlInput(name: string, options?: InputOptions): any | null {
 /**
  * Execute a command and get the output.
  * @param commandLine - command to execute (can include additional args). Must be correctly escaped.
+ * @param args - optional command arguments.
  * @param options - optional exec options. See ExecOptions
  * @returns status, stdout and stderr
  */
-export async function exec(commandLine: string, options?: ExecOptions) {
-  const result = {status: 0, stdout: '', stderr: ''}
-  result.status = await _exec.exec(commandLine, undefined, {
+export async function exec(commandLine: string, args?: string[], options?: _exec.ExecOptions): Promise<ExecResult> {
+  const stdoutChunks = <Buffer[]>[]
+  const stderrChunks = <Buffer[]>[]
+  const status = await _exec.exec(commandLine, args, {
     ...options,
     listeners: {
       stdout(data) {
-        result.stdout += data.toString()
+        stdoutChunks.push(data)
       },
       stderr(data) {
-        result.stderr += data.toString()
+        stderrChunks.push(data)
       },
     },
   })
-  return result
+  return {
+    status,
+    stdout: Buffer.concat(stdoutChunks as Uint8Array[]),
+    stderr: Buffer.concat(stderrChunks as Uint8Array[]),
+  }
+}
+
+export type ExecResult = {
+  status: number
+  stdout: Buffer
+  stderr: Buffer
 }
