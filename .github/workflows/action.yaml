@@ -27,5 +27,4 @@
           uses: qoomon/actions--commit@v1
           with:
             message: 'build(release): release action'
-        - name: Release Action
-          run: git push
+            push: true
