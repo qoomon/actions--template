@@ -1,4 +1,4 @@
-  name: Build and Release
+  name: Build Action
 
   on:
     push:
@@ -12,19 +12,18 @@
       runs-on: ubuntu-latest
       steps:
         - uses: actions/checkout@v4
+
+        # build action
         - uses: actions/setup-node@v4
           with:
             node-version: '20'
             cache: 'npm'
         - run: npm ci
+        - run: npm run build
 
-        - name: Build Action
-          run: npm run build
-
-        - name: Release Action
-          run: git add -f dist/
-        - name: Release Action
-          uses: qoomon/actions--commit@v1
+        # commit changes
+        - run: git add -f dist/
+        - uses: qoomon/actions--commit@v1
           with:
-            message: 'build(release): release action'
-            push: true
+            message: 'chore: build action'
+        - run: git push

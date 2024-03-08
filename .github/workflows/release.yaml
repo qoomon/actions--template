@@ -1,4 +1,4 @@
-  name: Release Version
+  name: Release Action
 
   on:
     workflow_dispatch:
@@ -25,7 +25,6 @@
             RELEASE_VERSION:
               ${{ inputs.version }}
           run: |
-            # TODO check for version format
             if [ -z "$RELEASE_VERSION" ]
             then
               exit 1
