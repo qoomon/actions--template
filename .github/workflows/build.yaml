@@ -1,29 +1,29 @@
-  name: Build Action
+name: Build Action
 
-  on:
-    push:
-      branches:
-        - main
+on:
+  push:
+    branches:
+      - main
 
-  jobs:
-    build:
-      permissions:
-        contents: write
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@v4
+jobs:
+  build:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-        # build action
-        - uses: actions/setup-node@v4
-          with:
-            node-version: '20'
-            cache: 'npm'
-        - run: npm ci
-        - run: npm run build
+      # build action
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
 
-        # commit changes
-        - run: git add -f dist/
-        - uses: qoomon/actions--commit@v1
-          with:
-            message: 'chore: build action'
-        - run: git push
+      # commit changes
+      - run: git add -f dist/
+      - uses: qoomon/actions--commit@v1
+        with:
+          message: 'chore: build action'
+      - run: git push
