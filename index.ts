@@ -1,20 +1,21 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import {HttpClient} from '@actions/http-client'
-import {exec, getInput, getYamlInput, run} from './lib/actions'
+import {exec, getInput, getYamlInput, run} from './lib/actions.js'
 // see https://github.com/actions/toolkit for more github actions libraries
 import {z} from 'zod'
-
-const context = github.context
-const input = {
-  token: getInput('token', {required: true})!,
-  string: getInput('stringInput'),
-  yaml: z.optional(z.array(z.string())).default([])
-      .parse(getYamlInput('yamlInput')),
-}
-const octokit = github.getOctokit(input.token)
+import {fileURLToPath} from 'url'
 
 export const action = () => run(async () => {
+  const context = github.context
+  const input = {
+    token: getInput('token', {required: true})!,
+    string: getInput('stringInput'),
+    yaml: z.optional(z.array(z.string())).default([])
+        .parse(getYamlInput('yamlInput')),
+  }
+  const octokit = github.getOctokit(input.token)
+
   await octokit.rest.issues.create({
     owner: context.repo.owner,
     repo: context.repo.repo,
@@ -43,7 +44,7 @@ export const action = () => run(async () => {
   core.setOutput('stringOutput', result)
 })
 
-// Run the action, if running as a script
-if (require.main === module) {
+// Execute the action, if running as main module
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
   action()
 }
