@@ -1,20 +1,20 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import {HttpClient} from '@actions/http-client'
-import * as action from './lib/actions'
+import {exec, getInput, getYamlInput, run} from './lib/actions'
 // see https://github.com/actions/toolkit for more github actions libraries
 import {z} from 'zod'
 
 const context = github.context
 const input = {
-  token: core.getInput('token', {required: true})!,
-  string: core.getInput('stringInput'),
+  token: getInput('token', {required: true})!,
+  string: getInput('stringInput'),
   yaml: z.optional(z.array(z.string())).default([])
-      .parse(action.getYamlInput('yamlInput')),
+      .parse(getYamlInput('yamlInput')),
 }
 const octokit = github.getOctokit(input.token)
 
-action.run(async () => {
+export const action = () => run(async () => {
   await octokit.rest.issues.create({
     owner: context.repo.owner,
     repo: context.repo.repo,
@@ -27,7 +27,7 @@ action.run(async () => {
     core.info(`HTTP response: ${response.message.statusCode}`)
   })
 
-  const result = await action.exec('echo', ['Hello world!'])
+  const result = await exec('echo', ['Hello world!'])
       .then(({stdout}) => stdout.toString())
 
   // core.setSecret(value) will mask the value in logs
@@ -42,3 +42,8 @@ action.run(async () => {
   // core.setOutput(key,value) will set the value of an output
   core.setOutput('stringOutput', result)
 })
+
+// Run the action, if running as a script
+if (require.main === module) {
+  action()
+}
