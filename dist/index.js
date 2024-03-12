@@ -44433,6 +44433,9 @@ run(async () => {
     // core.setSecret(value) will mask the value in logs
     core.setSecret('secretXXX');
     core.info(result);
+    core.startGroup('Group title');
+    core.info(result);
+    core.endGroup();
     // core.setFailed('This is a failure')
     // core.setOutput(key,value) will set the value of an output
     core.setOutput('stringOutput', result);
