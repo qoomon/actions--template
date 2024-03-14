@@ -26,5 +26,4 @@ jobs:
       - run: |
           git add -f dist/
           git commit -m 'chore: build action'
-      - uses: qoomon/actions--sign-commit@v1
-      - run: git push
+          git push
