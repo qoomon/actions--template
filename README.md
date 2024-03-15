@@ -4,6 +4,7 @@ A template for creating new TypeScript GitHub Actions
 ### Usage
 - Create a new repository by clicking on the 🟩 `Use this Template` button at the top right
 
+#### Development
 - run `npm install`
 - edit `action.yml` to adjust action metadata
 - edit `README.md` to describe the action
