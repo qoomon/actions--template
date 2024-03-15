@@ -7,4 +7,4 @@ A template for creating new actions
 
 ## Development
 ### Release New Action Version
-Trigger [Release Version workflow](/actions/workflows/action-release.yaml)
+Trigger [Release Version workflow](../../actions/workflows/release.yaml)
