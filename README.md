@@ -2,7 +2,7 @@
 A template for creating new TypeScript GitHub Actions
 
 ### Usage
-- Create a new repository by clicking on the 🟩 `Use this Template` button at the top right
+- Create a new repository by clicking on the 🟩 `Use this template` button at the top right
 
 #### Development
 - run `npm install`
