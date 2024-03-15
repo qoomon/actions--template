@@ -1,5 +1,5 @@
-# actions--template
-A template for creating new actions
+# GitHub Actions Template
+A template for creating new TypeScript GitHub Actions
 
 ### Usage
 - Create a new repository by clicking on the 🟩 `Use this Template` button at the top right
