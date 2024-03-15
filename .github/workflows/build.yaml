@@ -7,14 +7,14 @@ on:
 
 jobs:
   build:
+    runs-on: ubuntu-latest
     permissions:
       contents: write
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: qoomon/actions--setup-git-user@v1
 
-      # build action
+      # build the action
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -22,8 +22,8 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      # commit changes
+      # commit and push build output
       - run: |
           git add -f dist/
-          git commit -m 'chore: build action'
+          git commit -m 'chore: build action' || true
           git push
