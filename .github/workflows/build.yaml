@@ -2,8 +2,7 @@ name: Build Action
 
 on:
   push:
-    branches:
-      - main
+    branches: ['**'] 
 
 jobs:
   build:
