@@ -2,7 +2,7 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "ncc build index.ts",
+    "build": "ncc build index.ts -o dist --source-map --license licenses.txt",
     "lint": "eslint .",
     "test": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --forceExit --detectOpenHandles",
     "ts-node": "NODE_OPTIONS='--require ts-node/register --loader ts-node/esm' node"
