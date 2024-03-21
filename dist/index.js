@@ -1,4 +1,4 @@
-import { createRequire as __WEBPACK_EXTERNAL_createRequire } from "module";
+import './sourcemap-register.cjs';import { createRequire as __WEBPACK_EXTERNAL_createRequire } from "module";
 /******/ var __webpack_modules__ = ({
 
 /***/ 7351:
@@ -40336,6 +40336,13 @@ var dist = __nccwpck_require__(4083);
 
 
 /**
+ * GitHub Actions bot user
+ */
+const bot = {
+    name: 'github-actions[bot]',
+    email: '41898282+github-actions[bot]@users.noreply.github.com',
+};
+/**
  * Run action and catch errors
  * @param action - action to run
  * @returns void
@@ -44474,3 +44481,5 @@ if (process.argv[1] === (0,external_url_.fileURLToPath)(import.meta.url)) {
 
 var __webpack_exports__action = __webpack_exports__.a;
 export { __webpack_exports__action as action };
+
+//# sourceMappingURL=index.js.map
