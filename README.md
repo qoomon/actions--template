@@ -16,7 +16,7 @@ A template for creating new TypeScript GitHub Actions
   - the [Build workflow](../../actions/workflows/build.yaml) will build your changes and release them to correspondig branch automtically.
   - Then you can use your action like this e.g.
     ```yaml
-      - uses: qoomon/actions--sign-commit@main
+      - uses: qoomon/actions--create-commit@main
     ```
     
 #### Release New Action Version
