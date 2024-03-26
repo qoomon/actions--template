@@ -28,23 +28,32 @@ jobs:
           INPUT_VERSION: ${{ inputs.version }}
         with:
           script: |
+            const inputs = {
+              version: core.getInput('version', {required: true}),
+              ref: core.getInput('ref', {required: true}),
+            }
+            if(!inputs.version.match(/^\d+\.\d+\.\d/)) {
+              core.setFailed('Invalid input(s)')
+              core.error(`  version needs to follow valid semantic version format e.g. 1.0.3`)
+              return
+            }
+
+            core.info('Create Release ' + inputs.version + ` (v${inputs.version})`)
             await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              tag_name: 'v' + core.getInput('version'),
-              target_commitish: core.getInput('ref'),
+              name: inputs.version,
+              tag_name: 'v' + inputs.version,
+              target_commitish: inputs.ref,
             })
 
-      - name: Move Major Version Tag
-        env:
-          INPUT_VERSION: ${{ inputs.version }}
-        run: |
-          MAJOR_INPUT_VERSION="${INPUT_VERSION%%.*}"
-          if [ "${MAJOR_INPUT_VERSION}" != "${INPUT_VERSION}" ]
-          then
-           # move the major version tag e.g. v1
-            MAJOR_VERSION_TAG="v${MAJOR_INPUT_VERSION}"
-            git tag --force "${MAJOR_VERSION_TAG}"
-            git push --force-with-lease origin "${MAJOR_VERSION_TAG}"
-          fi
+            const majorVersion = inputs.version.match(/^(?<major>\d+)/)!.groups!.major
+            core.info('Move Major Version Tag v' + majorVersion)
+            await github.rest.git.updateRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'refs/tags/' + 'v' + majorVersion,
+              sha: inputs.ref,
+              force: true,
+            })
 
