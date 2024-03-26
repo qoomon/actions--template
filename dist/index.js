@@ -44448,13 +44448,13 @@ var external_url_ = __nccwpck_require__(7310);
 
 const action = () => run(async () => {
     const context = github.context;
-    const input = {
+    const inputs = {
         token: getInput('token', { required: true }),
         string: getInput('stringInput'),
         yaml: z.optional(z.array(z.string())).default([])
             .parse(getYamlInput('yamlInput')),
     };
-    const octokit = github.getOctokit(input.token);
+    const octokit = github.getOctokit(inputs.token);
     await octokit.rest.issues.create({
         owner: context.repo.owner,
         repo: context.repo.repo,
