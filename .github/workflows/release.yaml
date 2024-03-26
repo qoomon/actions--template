@@ -58,7 +58,7 @@ jobs:
             await github.rest.git.updateRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              ref: 'refs/tags/' + 'v' + majorVersion,
+              ref: 'tags/' + 'v' + majorVersion,
               sha: releaseTag.object.sha,
               force: true,
             })
