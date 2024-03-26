@@ -47,7 +47,7 @@ jobs:
               target_commitish: inputs.ref,
             })
 
-            const majorVersion = inputs.version.match(/^(?<major>\d+)/)!.groups!.major
+            const majorVersion = inputs.version.match(/^(?<major>\d+)/).groups.major
             core.info('Move Major Version Tag v' + majorVersion)
             await github.rest.git.updateRef({
               owner: context.repo.owner,
