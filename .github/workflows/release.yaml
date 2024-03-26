@@ -43,5 +43,5 @@ jobs:
           MAJOR_INPUT_VERSION="${INPUT_VERSION%%.*}"
           MAJOR_VERSION_TAG="v${MAJOR_INPUT_VERSION}"
           git tag --force "${MAJOR_VERSION_TAG}"
-          git push --force origin "${MAJOR_VERSION_TAG}"
+          git push --force-with-lease origin "${MAJOR_VERSION_TAG}"
 
