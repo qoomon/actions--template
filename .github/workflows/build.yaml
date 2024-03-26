@@ -21,8 +21,10 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      # commit and push build output
-      - run: |
-          git add -f dist/
-          git commit -m 'chore: build action' || true
-          git push
+      # commit and push changes
+      - run: git add -f dist/
+      - uses: JH-JDS/actions--commit@v1
+        with:
+          message: 'chore: build action'
+          skip-empty: true
+      - run: git push
