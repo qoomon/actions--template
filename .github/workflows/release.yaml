@@ -50,7 +50,7 @@ jobs:
             const releaseTag = await github.rest.git.getRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              ref: 'refs/tags/' + release.tag_name
+              ref: 'tags/' + release.tag_name
             }).then(res => res.data)
 
             const majorVersion = inputs.version.match(/^(?<major>\d+)/).groups.major
