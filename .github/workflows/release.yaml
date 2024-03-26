@@ -39,13 +39,19 @@ jobs:
             }
 
             core.info('Create Release ' + inputs.version + ` (v${inputs.version})`)
-            await github.rest.repos.createRelease({
+            const release = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
               name: inputs.version,
               tag_name: 'v' + inputs.version,
               target_commitish: inputs.ref,
-            })
+            }).then(res => res.data)
+
+            const releaseTag = await octokit2.rest.git.getRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'refs/tags/' + release.tag_name
+            }).then(res => res.data)
 
             const majorVersion = inputs.version.match(/^(?<major>\d+)/).groups.major
             core.info('Move Major Version Tag v' + majorVersion)
@@ -53,7 +59,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               ref: 'refs/tags/' + 'v' + majorVersion,
-              sha: inputs.ref,
+              sha: releaseTag.object.sha,
               force: true,
             })
 
