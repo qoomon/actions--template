@@ -39,9 +39,12 @@ jobs:
         env:
           INPUT_VERSION: ${{ inputs.version }}
         run: |
-          # move the major version tag e.g. v1
           MAJOR_INPUT_VERSION="${INPUT_VERSION%%.*}"
-          MAJOR_VERSION_TAG="v${MAJOR_INPUT_VERSION}"
-          git tag --force "${MAJOR_VERSION_TAG}"
-          git push --force-with-lease origin "${MAJOR_VERSION_TAG}"
+          if [ "${MAJOR_INPUT_VERSION}" != "${INPUT_VERSION}" ]
+          then
+           # move the major version tag e.g. v1
+            MAJOR_VERSION_TAG="v${MAJOR_INPUT_VERSION}"
+            git tag --force "${MAJOR_VERSION_TAG}"
+            git push --force-with-lease origin "${MAJOR_VERSION_TAG}"
+          fi
 
