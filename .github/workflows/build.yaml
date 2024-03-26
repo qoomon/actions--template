@@ -23,7 +23,7 @@ jobs:
 
       # commit and push changes
       - run: git add -f dist/
-      - uses: JH-JDS/actions--commit@v1
+      - uses: qoomon/actions--create-commit@v1
         with:
           message: 'chore: build action'
           skip-empty: true
