@@ -61,6 +61,6 @@ jobs:
             await github.rest.git.updateRef({
               ...context.repo,
               force: true,
-              ref: 'tags/' + majorReleaseVersionTagName,
+              ref: 'tags/' + majorReleaseTagName,
               sha: releaseCommitSha,
             })
