@@ -38,6 +38,7 @@ jobs:
             const versionTagPrefix = 'v'
 
             const releaseTagName = versionTagPrefix + inputs.version
+            
             core.info('Create Release ' + inputs.version + ` (${releaseTagName})`)
             const release = await github.rest.repos.createRelease({
               ...context.repo,
@@ -45,13 +46,16 @@ jobs:
               tag_name: releaseTagName,
               target_commitish: inputs.ref,
             }).then(res => res.data)
+            
+            const releaseCommitSha = await github.rest.git.getRef({ ...context.repo, ref: 'tags/' + release.tag_name}).then(res => res.data.sha)
 
             const majorReleaseVersion = inputs.version.match(/^(?<major>\d+)/).groups.major
             const majorReleaseTagName = versionTagPrefix + majorReleaseVersion
+            
             core.info('Move Major Version Tag ' + majorReleaseTagName + ' to point to ' + releaseTagName)
             await github.rest.git.updateRef({
               ...context.repo,
               force: true,
               ref: 'tags/' + majorReleaseVersionTagName,
-              sha: await github.rest.git.getRef({ ...context.repo, ref: 'tags/' + release.tag_name}).then(res => res.data.sha),
+              sha: releaseCommitSha,
             })
