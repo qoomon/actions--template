@@ -48,16 +48,15 @@ jobs:
               tag_name: releaseTagName,
               target_commitish: inputs.ref,
             }).then(res => res.data)
-            
-            const majorReleaseVersion = inputs.version.match(/^(?<major>\d+)/).groups.major
-            const majorReleaseTagName = config.tagPrefix + majorReleaseVersion
-            core.info('Move Major Release Tag ' + majorReleaseTagName + ' to point to ' + releaseTagName)
-            
-            const releaseCommitSha = await github.rest.git.getRef({
+
+             const releaseCommitSha = await github.rest.git.getRef({
               ...context.repo, 
               ref: 'tags/' + release.tag_name,
             }).then(res => res.data.sha)
             
+            const majorReleaseTagName = release.tag_name.replace(/\..*$/,'')
+            core.info('Move Major Release Tag ' + majorReleaseTagName + ' to point to ' + releaseTagName)
+
             await github.rest.git.updateRef({
               ...context.repo,
               force: true,
