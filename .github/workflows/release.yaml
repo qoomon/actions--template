@@ -24,6 +24,10 @@ jobs:
           INPUT_VERSION: ${{ inputs.version }}
         with:
           script: |
+            const config = {
+              tagPrefix: 'v'
+            }
+            
             const inputs = {
               version: core.getInput('version', {required: true}),
               ref: core.getInput('ref', {required: true}),
@@ -35,11 +39,9 @@ jobs:
               return
             }
 
-            const versionTagPrefix = 'v'
-
-            const releaseTagName = versionTagPrefix + inputs.version
-            
+            const releaseTagName = config.tagPrefix + inputs.version
             core.info('Create Release ' + inputs.version + ` (${releaseTagName})`)
+            
             const release = await github.rest.repos.createRelease({
               ...context.repo,
               name: inputs.version,
@@ -47,12 +49,15 @@ jobs:
               target_commitish: inputs.ref,
             }).then(res => res.data)
             
-            const releaseCommitSha = await github.rest.git.getRef({ ...context.repo, ref: 'tags/' + release.tag_name}).then(res => res.data.sha)
-
             const majorReleaseVersion = inputs.version.match(/^(?<major>\d+)/).groups.major
-            const majorReleaseTagName = versionTagPrefix + majorReleaseVersion
+            const majorReleaseTagName = config.tagPrefix + majorReleaseVersion
+            core.info('Move Major Release Tag ' + majorReleaseTagName + ' to point to ' + releaseTagName)
             
-            core.info('Move Major Version Tag ' + majorReleaseTagName + ' to point to ' + releaseTagName)
+            const releaseCommitSha = await github.rest.git.getRef({
+              ...context.repo, 
+              ref: 'tags/' + release.tag_name,
+            }).then(res => res.data.sha)
+            
             await github.rest.git.updateRef({
               ...context.repo,
               force: true,
