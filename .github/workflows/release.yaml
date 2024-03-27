@@ -52,7 +52,7 @@ jobs:
              const releaseCommitSha = await github.rest.git.getRef({
               ...context.repo, 
               ref: 'tags/' + release.tag_name,
-            }).then(res => res.data.sha)
+            }).then(res => res.data.object.sha)
             
             const majorReleaseTagName = release.tag_name.replace(/\..*$/,'')
             core.info('Move Major Release Tag ' + majorReleaseTagName + ' to point to ' + releaseTagName)
