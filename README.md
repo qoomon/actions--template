@@ -13,7 +13,7 @@ A template for creating new TypeScript GitHub Actions
   - adjust `local-run-action.ts`
   - run `npm run ts-node -- local-run-action.ts`
 - commit and push your changes
-  - the [Build workflow](../../actions/workflows/build.yaml) will build your changes and release them to correspondig branch automtically.
+  - the [Build workflow](../../actions/workflows/build.yaml) will build your changes and release them to corresponding branch automatically.
   - Then you can use your action like this e.g.
     ```yaml
       - uses: <OWNER>/<REPO>@main
