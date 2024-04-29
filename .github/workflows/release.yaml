@@ -59,7 +59,17 @@ jobs:
 
             await github.rest.git.updateRef({
               ...context.repo,
-              force: true,
               ref: 'tags/' + majorReleaseTagName,
               sha: releaseCommitSha,
+              force: true,
+            }).catch(err => {
+              if (err.status === 422) {
+                return github.git.createRef({
+                  ...context.repo,
+                  ref: 'tags/' + majorReleaseTagName,
+                  sha: releaseCommitSha,
+                })
+              }
+              throw err;
             })
+            
