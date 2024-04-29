@@ -70,6 +70,6 @@ jobs:
                   sha: releaseCommitSha,
                 })
               }
-              throw err;
+              throw err
             })
             
