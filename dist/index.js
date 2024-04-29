@@ -40553,7 +40553,6 @@ var dist = __nccwpck_require__(4083);
 
 
 
-
 /**
  * GitHub Actions bot user
  */
@@ -40568,11 +40567,12 @@ const bot = {
  */
 function run(action) {
     action().catch(async (error) => {
-        core.setFailed('Unhandled error, see job logs');
         console.error('Error:', error);
-        if (error instanceof lib.HttpClientError) {
-            console.error('Http response:', error.result);
+        let failedMessage = 'Unhandled error, see job logs';
+        if (error != null && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+            failedMessage = error.message;
         }
+        core.setFailed(failedMessage);
     });
 }
 /**
