@@ -64,7 +64,7 @@ jobs:
               force: true,
             }).catch(err => {
               if (err.status === 422) {
-                return github.git.createRef({
+                return github.rest.git.createRef({
                   ...context.repo,
                   ref: 'tags/' + majorReleaseTagName,
                   sha: releaseCommitSha,
