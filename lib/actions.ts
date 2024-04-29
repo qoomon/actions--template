@@ -18,11 +18,12 @@ export const bot = {
  */
 export function run(action: () => Promise<void>): void {
   action().catch(async (error: unknown) => {
-    core.setFailed('Unhandled error, see job logs')
     console.error('Error:', error)
-    if (error instanceof httpClient.HttpClientError) {
-      console.error('Http response:', error.result)
+    let failedMessage = 'Unhandled error, see job logs'
+    if (error != null && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+      failedMessage = error.message
     }
+    core.setFailed(failedMessage)
   })
 }
 
