@@ -36,8 +36,8 @@ export function run(action: () => Promise<void>): void {
  * @param     options  optional. See InputOptions.
  * @returns   parsed input as object
  */
-export function getInput(name: string, options?: core.InputOptions): string | null {
-  return core.getInput(name, options) || null
+export function getInput(name: string, options?: core.InputOptions): string | undefined {
+  return core.getInput(name, options) || undefined
 }
 
 /* eslint-disable  @typescript-eslint/no-explicit-any */
@@ -50,9 +50,9 @@ export function getInput(name: string, options?: core.InputOptions): string | nu
  * @param     options  optional. See InputOptions.
  * @returns   parsed input as object
  */
-export function getYamlInput(name: string, options?: core.InputOptions): any | null {
+export function getYamlInput(name: string, options?: core.InputOptions): any | undefined {
   const input = getInput(name, options)
-  if (input === null) return null
+  if (input === undefined) return undefined
   return YAML.parse(input)
 }
 
