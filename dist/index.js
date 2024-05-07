@@ -40585,7 +40585,7 @@ function run(action) {
  * @returns   parsed input as object
  */
 function getInput(name, options) {
-    return core.getInput(name, options) || null;
+    return core.getInput(name, options) || undefined;
 }
 /* eslint-disable  @typescript-eslint/no-explicit-any */
 /**
@@ -40599,8 +40599,8 @@ function getInput(name, options) {
  */
 function getYamlInput(name, options) {
     const input = getInput(name, options);
-    if (input === null)
-        return null;
+    if (input === undefined)
+        return undefined;
     return dist.parse(input);
 }
 /**
