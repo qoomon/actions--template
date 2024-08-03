@@ -44,7 +44,7 @@ export const action = () => run(async () => {
   core.setOutput('stringOutput', result)
 })
 
-// Execute the action, if running as main module
+// Execute the action, if running as the main module
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   action()
 }
