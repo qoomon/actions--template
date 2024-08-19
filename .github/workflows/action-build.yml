@@ -3,8 +3,6 @@ name: Action > Build
 on:
   push:
     branches: ['**']
-    paths:
-      - action/**
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
