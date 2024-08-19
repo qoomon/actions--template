@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import {HttpClient} from '@actions/http-client'
-// see https://github.com/actions/toolkit for more github actions libraries
+// see https://github.com/actions/toolkit for more GitHub actions libraries
 import {exec, getInput, getYamlInput, run} from './lib/actions.js'
 import {z} from 'zod'
 import {fileURLToPath} from 'url'

@@ -1,5 +1,4 @@
 import * as core from '@actions/core'
-import * as httpClient from '@actions/http-client'
 import * as _exec from '@actions/exec'
 import YAML from 'yaml'
 
@@ -69,8 +68,8 @@ export function getYamlInput(name: string, options?: core.InputOptions): any | u
  * @returns status, stdout and stderr
  */
 export async function exec(commandLine: string, args?: string[], options?: _exec.ExecOptions): Promise<ExecResult> {
-  const stdoutChunks = <Buffer[]>[]
-  const stderrChunks = <Buffer[]>[]
+  const stdoutChunks = [] as Buffer[]
+  const stderrChunks = [] as Buffer[]
   const status = await _exec.exec(commandLine, args, {
     ...options,
     listeners: {
@@ -89,7 +88,7 @@ export async function exec(commandLine: string, args?: string[], options?: _exec
   }
 }
 
-export type ExecResult = {
+export interface ExecResult {
   status: number
   stdout: Buffer
   stderr: Buffer
