@@ -4,20 +4,11 @@ on:
   push:
     branches: ['**']
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: action
     steps:
       - uses: actions/checkout@v4
-        with:
-          sparse-checkout: action
-          sparse-checkout-cone-mode: false
 
       # build the action
       - uses: actions/setup-node@v4
