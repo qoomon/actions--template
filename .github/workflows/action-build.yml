@@ -33,19 +33,10 @@ jobs:
       - run: npm run build
 
       # Verify that the dist/ is up-to-date
-<<<<<<< Updated upstream:.github/workflows/build.yaml
       - name: Verify Action release
         if: github.ref == 'refs/heads/main'
         run: |
           git_diff="$(git diff --ignore-cr-at-eol dist/)"
-||||||| Stash base:.github/workflows/build.yaml
-      - run: |
-          git_diff="$(git diff --name-only dist/)"
-=======
-      - name: Verify Action release
-        run: |
-          git_diff="$(git diff --ignore-cr-at-eol dist/)"
->>>>>>> Stashed changes:.github/workflows/action-build.yml
           if [ -n "$git_diff" ]; then
             echo "::error::Drift detected in dist/ directory"
             echo "$git_diff"
