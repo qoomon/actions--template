@@ -2,9 +2,10 @@ import * as core from '@actions/core'
 import * as github from '@actions/github'
 import {HttpClient} from '@actions/http-client'
 // see https://github.com/actions/toolkit for more GitHub actions libraries
-import {exec, getInput, getYamlInput, run} from './lib/actions.js'
+import {exec, getInput, run} from './lib/actions.js'
 import {z} from 'zod'
 import {fileURLToPath} from 'url'
+import {YamlTransformer} from './lib/common'
 
 export const action = () => run(async () => {
   const context = github.context
@@ -12,7 +13,7 @@ export const action = () => run(async () => {
     token: getInput('token', {required: true})!,
     string: getInput('stringInput'),
     yaml: z.optional(z.array(z.string())).default([])
-        .parse(getYamlInput('yamlInput')),
+        .parse(getInput('yamlInput', YamlTransformer)),
   }
   const octokit = github.getOctokit(inputs.token)
 

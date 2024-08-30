@@ -40573,6 +40573,18 @@ exports.visitAsync = visitAsync;
 /******/ }
 /******/ 
 /************************************************************************/
+/******/ /* webpack/runtime/compat get default export */
+/******/ (() => {
+/******/ 	// getDefaultExport function for compatibility with non-harmony modules
+/******/ 	__nccwpck_require__.n = (module) => {
+/******/ 		var getter = module && module.__esModule ?
+/******/ 			() => (module['default']) :
+/******/ 			() => (module);
+/******/ 		__nccwpck_require__.d(getter, { a: getter });
+/******/ 		return getter;
+/******/ 	};
+/******/ })();
+/******/ 
 /******/ /* webpack/runtime/define property getters */
 /******/ (() => {
 /******/ 	// define getter functions for harmony exports
@@ -40607,99 +40619,11 @@ __nccwpck_require__.d(__webpack_exports__, {
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(2186);
 // EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
-var github = __nccwpck_require__(5438);
+var lib_github = __nccwpck_require__(5438);
 // EXTERNAL MODULE: ./node_modules/@actions/http-client/lib/index.js
 var lib = __nccwpck_require__(6255);
 // EXTERNAL MODULE: ./node_modules/@actions/exec/lib/exec.js
 var exec = __nccwpck_require__(1514);
-// EXTERNAL MODULE: ./node_modules/yaml/dist/index.js
-var dist = __nccwpck_require__(4083);
-;// CONCATENATED MODULE: ./lib/actions.ts
-
-
-
-/**
- * GitHub Actions bot user
- */
-const bot = {
-    name: 'github-actions[bot]',
-    email: '41898282+github-actions[bot]@users.noreply.github.com',
-};
-/**
- * Run action and catch errors
- * @param action - action to run
- * @returns void
- */
-function run(action) {
-    action().catch(async (error) => {
-        let failedMessage = 'Unhandled error, see job logs';
-        if (error != null && typeof error === 'object' &&
-            'message' in error && error.message != null) {
-            failedMessage = error.message.toString();
-        }
-        core.setFailed(failedMessage);
-        if (error != null && typeof error === 'object' &&
-            'stack' in error) {
-            console.error(error.stack);
-        }
-    });
-}
-/**
- * Gets string value of an input.
- * Unless trimWhitespace is set to false in InputOptions, the value is also trimmed.
- * Returns null if the value is not defined.
- *
- * @param     name     name of the input to get
- * @param     options  optional. See InputOptions.
- * @returns   parsed input as object
- */
-function getInput(name, options) {
-    return core.getInput(name, options) || undefined;
-}
-/* eslint-disable  @typescript-eslint/no-explicit-any */
-/**
- * Gets the yaml value of an input.
- * Unless trimWhitespace is set to false in InputOptions, the value is also trimmed.
- * Returns null if the value is not defined.
- *
- * @param     name     name of the input to get
- * @param     options  optional. See InputOptions.
- * @returns   parsed input as object
- */
-function getYamlInput(name, options) {
-    const input = getInput(name, options);
-    if (input === undefined)
-        return undefined;
-    return dist.parse(input);
-}
-/**
- * Execute a command and get the output.
- * @param commandLine - command to execute (can include additional args). Must be correctly escaped.
- * @param args - optional command arguments.
- * @param options - optional exec options. See ExecOptions
- * @returns status, stdout and stderr
- */
-async function actions_exec(commandLine, args, options) {
-    const stdoutChunks = [];
-    const stderrChunks = [];
-    const status = await exec.exec(commandLine, args, {
-        ...options,
-        listeners: {
-            stdout(data) {
-                stdoutChunks.push(data);
-            },
-            stderr(data) {
-                stderrChunks.push(data);
-            },
-        },
-    });
-    return {
-        status,
-        stdout: Buffer.concat(stdoutChunks),
-        stderr: Buffer.concat(stderrChunks),
-    };
-}
-
 ;// CONCATENATED MODULE: ./node_modules/zod/lib/index.mjs
 var util;
 (function (util) {
@@ -44938,6 +44862,253 @@ var z = /*#__PURE__*/Object.freeze({
 
 
 
+;// CONCATENATED MODULE: external "node:process"
+const external_node_process_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:process");
+var external_node_process_default = /*#__PURE__*/__nccwpck_require__.n(external_node_process_namespaceObject);
+// EXTERNAL MODULE: ./node_modules/yaml/dist/index.js
+var dist = __nccwpck_require__(4083);
+;// CONCATENATED MODULE: ./lib/common.ts
+
+
+const LiteralSchema = z.union([z.string(), z.number(), z.boolean(), z["null"]()]);
+const JsonSchema = z.lazy(() => z.union([LiteralSchema, JsonObjectSchema, z.array(JsonSchema)]));
+const JsonObjectSchema = z.record(JsonSchema);
+const JsonTransformer = z.string().transform((str, ctx) => {
+    try {
+        return JSON.parse(str);
+    }
+    catch (error) {
+        ctx.addIssue({ code: 'custom', message: error.message });
+        return z.NEVER;
+    }
+});
+const YamlTransformer = z.string().transform((str, ctx) => {
+    try {
+        return dist.parse(str);
+    }
+    catch (error) {
+        ctx.addIssue({ code: 'custom', message: error.message });
+        return z.NEVER;
+    }
+});
+/**
+ * Returns a promise that resolves after the specified time
+ * @param milliseconds
+ */
+async function sleep(milliseconds) {
+    await new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+/**
+ * Flatten objects and arrays to all its values including nested objects and arrays
+ * @param values - value(s)
+ * @returns flattened values
+ */
+function common_getFlatValues(values) {
+    if (typeof values !== 'object' || values == null) {
+        return [values];
+    }
+    if (Array.isArray(values)) {
+        return values.flatMap(common_getFlatValues);
+    }
+    return common_getFlatValues(Object.values(values));
+}
+
+;// CONCATENATED MODULE: ./lib/actions.ts
+
+
+
+
+
+
+const context = enhancedContext();
+/**
+ * GitHub Actions bot user
+ */
+const bot = {
+    name: 'github-actions[bot]',
+    email: '41898282+github-actions[bot]@users.noreply.github.com',
+};
+/**
+ * Run action and catch errors
+ * @param action - action to run
+ * @returns void
+ */
+function run(action) {
+    action().catch(async (error) => {
+        let failedMessage = 'Unhandled error, see job logs';
+        if (error != null && typeof error === 'object' &&
+            'message' in error && error.message != null) {
+            failedMessage = error.message.toString();
+        }
+        core.setFailed(failedMessage);
+        if (error != null && typeof error === 'object' &&
+            'stack' in error) {
+            console.error(error.stack);
+        }
+    });
+}
+function getInput(name, schema_options, options) {
+    let schema;
+    if (schema_options instanceof ZodType) {
+        schema = schema_options;
+    }
+    else {
+        options = schema_options;
+    }
+    const input = core.getInput(name, options);
+    if (!input)
+        return undefined;
+    if (!schema)
+        return input;
+    const parseResult = schema.safeParse(input);
+    if (parseResult.error) {
+        const issues = parseResult.error.issues.map(formatZodIssue);
+        throw new Error(`Invalid value for input '${name}': ${input}\n` +
+            issues.map((it) => `  - ${it}`).join('\n'));
+    }
+    return parseResult.data;
+    // --- zod utils ---
+    /**
+     * This function will format a zod issue
+     * @param issue - zod issue
+     * @return formatted issue
+     */
+    function formatZodIssue(issue) {
+        if (issue.path.length === 0)
+            return issue.message;
+        return `${issue.path.join('.')}: ${issue.message}`;
+    }
+}
+/**
+ * Execute a command and get the output.
+ * @param commandLine - command to execute (can include additional args). Must be correctly escaped.
+ * @param args - optional command arguments.
+ * @param options - optional exec options. See ExecOptions
+ * @returns status, stdout and stderr
+ */
+async function actions_exec(commandLine, args, options) {
+    const stdoutChunks = [];
+    const stderrChunks = [];
+    const status = await exec.exec(commandLine, args, {
+        ...options,
+        listeners: {
+            stdout(data) {
+                stdoutChunks.push(data);
+            },
+            stderr(data) {
+                stderrChunks.push(data);
+            },
+        },
+    });
+    return {
+        status,
+        stdout: Buffer.concat(stdoutChunks),
+        stderr: Buffer.concat(stderrChunks),
+    };
+}
+function enhancedContext() {
+    const context = lib_github.context;
+    const additionalContext = {
+        repository: `${context.repo.owner}/${context.repo.repo}`,
+        runAttempt: parseInt((external_node_process_default()).env.GITHUB_RUN_ATTEMPT, 10),
+        runnerName: (external_node_process_default()).env.RUNNER_NAME,
+        runnerTemp: (external_node_process_default()).env.RUNNER_TEMP,
+    };
+    return new Proxy(context, {
+        get(context, prop, receiver) {
+            return prop in context
+                // @ts-ignore
+                ? context[prop]
+                // @ts-ignore
+                : additionalContext[prop];
+        },
+    });
+}
+function getAbsoluteJobName({ job, matrix, workflowContextChain }) {
+    let actualJobName = job;
+    if (matrix) {
+        const flatValues = getFlatValues(matrix);
+        if (flatValues.length > 0) {
+            actualJobName = `${actualJobName} (${flatValues.join(', ')})`;
+        }
+    }
+    workflowContextChain?.forEach((workflowContext) => {
+        const contextJob = getAbsoluteJobName(workflowContext);
+        actualJobName = `${contextJob} / ${actualJobName}`;
+    });
+    return actualJobName;
+}
+const JobMatrixParser = JsonTransformer.pipe(JsonObjectSchema.nullable());
+const WorkflowContextSchema = z.object({
+    job: z.string(),
+    matrix: JsonObjectSchema.nullable(),
+}).strict();
+const WorkflowContextParser = z.string()
+    .transform((str, ctx) => JsonTransformer.parse(`[${str}]`, ctx))
+    .pipe(z.array(z.union([z.string(), JsonObjectSchema]).nullable()))
+    .transform((contextChainArray, ctx) => {
+    const contextChain = [];
+    while (contextChainArray.length > 0) {
+        const job = contextChainArray.shift();
+        if (typeof job !== 'string') {
+            ctx.addIssue({
+                code: 'custom',
+                message: `Value must match the schema: "<JOB_NAME>", [<MATRIX_JSON>], [<JOB_NAME>", [<MATRIX_JSON>], ...]`,
+            });
+            return z.NEVER;
+        }
+        let matrix;
+        if (typeof contextChainArray[0] === 'object') {
+            matrix = contextChainArray.shift();
+        }
+        contextChain.push({ job, matrix });
+    }
+    return contextChain;
+})
+    .pipe(z.array(WorkflowContextSchema));
+/**
+ * Get the current job from the workflow run
+ * @returns the current job
+ */
+async function getJobObject() {
+    const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
+    const workflowRunJobs = await octokit.paginate(octokit.rest.actions.listJobsForWorkflowRunAttempt, {
+        ...context.repo,
+        run_id: context.runId,
+        attempt_number: context.runAttempt,
+    }).catch((error) => {
+        if (error.status === 403) {
+            throwPermissionError({ scope: 'actions', permission: 'read' }, error);
+        }
+        throw error;
+    });
+    const absoluteJobName = getAbsoluteJobName({
+        job: context.job,
+        matrix: getInput('matrix', JobMatrixParser),
+        workflowContextChain: getInput('workflow-context', WorkflowContextParser),
+    });
+    const jobObject = workflowRunJobs.find((job) => job.name === absoluteJobName);
+    if (!jobObject) {
+        throw new Error(`Current job '${absoluteJobName}' could not be found in workflow run.\n` +
+            'If this action is used within a reusable workflow, ensure that ' +
+            'action input \'workflow-context\' is set correctly and ' +
+            'the \'workflow-context\' job name matches the job name of the job name that uses the reusable workflow.');
+    }
+    return jobObject;
+}
+/**
+ * Throw a permission error
+ * @param permission - GitHub Job permission
+ * @param options - error options
+ * @returns void
+ */
+function throwPermissionError(permission, options) {
+    throw new Error(`Ensure that GitHub job has permission: \`${permission.scope}: ${permission.permission}\`. ` +
+        // eslint-disable-next-line max-len
+        'https://docs.github.com/en/actions/security-guides/automatic-token-authentication#modifying-the-permissions-for-the-github_token', options);
+}
+// TODO function to store and read job state
+
 // EXTERNAL MODULE: external "url"
 var external_url_ = __nccwpck_require__(7310);
 ;// CONCATENATED MODULE: ./index.ts
@@ -44948,15 +45119,16 @@ var external_url_ = __nccwpck_require__(7310);
 
 
 
+
 const action = () => run(async () => {
-    const context = github.context;
+    const context = lib_github.context;
     const inputs = {
         token: getInput('token', { required: true }),
         string: getInput('stringInput'),
         yaml: z.optional(z.array(z.string())).default([])
-            .parse(getYamlInput('yamlInput')),
+            .parse(getInput('yamlInput', YamlTransformer)),
     };
-    const octokit = github.getOctokit(inputs.token);
+    const octokit = lib_github.getOctokit(inputs.token);
     await octokit.rest.issues.create({
         owner: context.repo.owner,
         repo: context.repo.repo,
