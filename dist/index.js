@@ -40619,7 +40619,7 @@ __nccwpck_require__.d(__webpack_exports__, {
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(2186);
 // EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
-var lib_github = __nccwpck_require__(5438);
+var github = __nccwpck_require__(5438);
 // EXTERNAL MODULE: ./node_modules/@actions/http-client/lib/index.js
 var lib = __nccwpck_require__(6255);
 // EXTERNAL MODULE: ./node_modules/@actions/exec/lib/exec.js
@@ -44947,13 +44947,13 @@ function run(action) {
         }
     });
 }
-function getInput(name, schema_options, options) {
-    let schema;
-    if (schema_options instanceof ZodType) {
-        schema = schema_options;
+function getInput(name, options_schema, schema) {
+    let options;
+    if (options_schema instanceof ZodType) {
+        schema = options_schema;
     }
     else {
-        options = schema_options;
+        options = options_schema;
     }
     const input = core.getInput(name, options);
     if (!input)
@@ -45007,12 +45007,19 @@ async function actions_exec(commandLine, args, options) {
     };
 }
 function enhancedContext() {
-    const context = lib_github.context;
+    const context = github.context;
+    const repository = `${context.repo.owner}/${context.repo.repo}`;
+    const runAttempt = parseInt((external_node_process_default()).env.GITHUB_RUN_ATTEMPT, 10);
+    const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}` +
+        (runAttempt ? `/attempts/${runAttempt}` : '');
+    const runnerName = (external_node_process_default()).env.RUNNER_NAME;
+    const runnerTempDir = (external_node_process_default()).env.RUNNER_TEMP;
     const additionalContext = {
-        repository: `${context.repo.owner}/${context.repo.repo}`,
-        runAttempt: parseInt((external_node_process_default()).env.GITHUB_RUN_ATTEMPT, 10),
-        runnerName: (external_node_process_default()).env.RUNNER_NAME,
-        runnerTemp: (external_node_process_default()).env.RUNNER_TEMP,
+        repository,
+        runAttempt,
+        runUrl,
+        runnerName,
+        runnerTempDir,
     };
     return new Proxy(context, {
         get(context, prop, receiver) {
@@ -45066,12 +45073,14 @@ const WorkflowContextParser = z.string()
     return contextChain;
 })
     .pipe(z.array(WorkflowContextSchema));
+let _jobObject;
 /**
  * Get the current job from the workflow run
  * @returns the current job
  */
-async function getJobObject() {
-    const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
+async function getJobObject(octokit) {
+    if (_jobObject)
+        return _jobObject;
     const workflowRunJobs = await octokit.paginate(octokit.rest.actions.listJobsForWorkflowRunAttempt, {
         ...context.repo,
         run_id: context.runId,
@@ -45084,17 +45093,98 @@ async function getJobObject() {
     });
     const absoluteJobName = getAbsoluteJobName({
         job: context.job,
-        matrix: getInput('matrix', JobMatrixParser),
+        matrix: getInput('#matrix', JobMatrixParser),
         workflowContextChain: getInput('workflow-context', WorkflowContextParser),
     });
-    const jobObject = workflowRunJobs.find((job) => job.name === absoluteJobName);
-    if (!jobObject) {
+    const currentJob = workflowRunJobs.find((job) => job.name === absoluteJobName);
+    if (!currentJob) {
         throw new Error(`Current job '${absoluteJobName}' could not be found in workflow run.\n` +
             'If this action is used within a reusable workflow, ensure that ' +
-            'action input \'workflow-context\' is set correctly and ' +
-            'the \'workflow-context\' job name matches the job name of the job name that uses the reusable workflow.');
+            'action input \'#workflow-context\' is set correctly and ' +
+            'the \'#workflow-context\' job name matches the job name of the job name that uses the reusable workflow.');
+        // TODO better error message
     }
-    return jobObject;
+    const jobObject = { ...currentJob, };
+    return _jobObject = jobObject;
+}
+let _deploymentObject;
+/**
+ * Get the current deployment from the workflow run
+ * @returns the current deployment or undefined
+ */
+async function getDeploymentObject(octokit) {
+    if (_deploymentObject)
+        return _deploymentObject;
+    const job = await getJobObject(octokit);
+    // --- get deployments for current sha
+    const potentialDeploymentsFromRestApi = await octokit.rest.repos.listDeployments({
+        ...context.repo,
+        sha: context.sha,
+        task: 'deploy',
+        per_page: 100,
+    }).catch((error) => {
+        if (error.status === 403) {
+            throwPermissionError({ scope: 'deployments', permission: 'read' }, error);
+        }
+        throw error;
+    }).then(({ data: deployments }) => deployments.filter((deployment) => deployment.performed_via_github_app?.slug === 'github-actions'));
+    // --- get deployment workflow job run id
+    // noinspection GraphQLUnresolvedReference
+    const potentialDeploymentsFromGrapqlApi = await octokit.graphql(`
+    query ($ids: [ID!]!) {
+      nodes(ids: $ids) {
+        ... on Deployment {
+          databaseId,
+          commitOid
+          createdAt
+          task
+          state
+          latestEnvironment
+          latestStatus {
+            logUrl
+            environmentUrl
+          }
+        }
+      }
+    }`, {
+        ids: potentialDeploymentsFromRestApi.map(({ node_id }) => node_id),
+    }).then(({ nodes: deployments }) => deployments
+        // filter is probably not needed due to check log url to match run id and job id
+        .filter((deployment) => deployment.commitOid === context.sha)
+        .filter((deployment) => deployment.task === 'deploy')
+        .filter((deployment) => deployment.state === 'IN_PROGRESS'));
+    const currentDeployment = potentialDeploymentsFromGrapqlApi.find((deployment) => {
+        if (!deployment.latestStatus?.logUrl)
+            return false;
+        const logUrl = new URL(deployment.latestStatus.logUrl);
+        if (logUrl.origin !== context.serverUrl)
+            return false;
+        const pathnameMatch = logUrl.pathname
+            .match(/\/(?<repository>[^/]+\/[^/]+)\/actions\/runs\/(?<run_id>[^/]+)\/job\/(?<job_id>[^/]+)/);
+        return pathnameMatch &&
+            pathnameMatch.groups?.repository === `${context.repo.owner}/${context.repo.repo}` &&
+            pathnameMatch.groups?.run_id === context.runId.toString() &&
+            pathnameMatch.groups?.job_id === job.id.toString();
+    });
+    if (!currentDeployment)
+        return undefined;
+    const currentDeploymentUrl = 
+    // eslint-disable-next-line max-len
+    `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/deployments/${currentDeployment.latestEnvironment}`;
+    const currentDeploymentWorkflowUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+    const deploymentObject = {
+        ...currentDeployment,
+        databaseId: undefined,
+        latestEnvironment: undefined,
+        latestStatus: undefined,
+        id: currentDeployment.databaseId,
+        url: currentDeploymentUrl,
+        workflowUrl: currentDeploymentWorkflowUrl,
+        logUrl: currentDeployment.latestStatus.logUrl,
+        environment: currentDeployment.latestEnvironment,
+        environmentUrl: currentDeployment.latestStatus.environmentUrl || undefined,
+    };
+    return _deploymentObject = deploymentObject;
 }
 /**
  * Throw a permission error
@@ -45121,14 +45211,14 @@ var external_url_ = __nccwpck_require__(7310);
 
 
 const action = () => run(async () => {
-    const context = lib_github.context;
+    const context = github.context;
     const inputs = {
         token: getInput('token', { required: true }),
         string: getInput('stringInput'),
         yaml: z.optional(z.array(z.string())).default([])
             .parse(getInput('yamlInput', YamlTransformer)),
     };
-    const octokit = lib_github.getOctokit(inputs.token);
+    const octokit = github.getOctokit(inputs.token);
     await octokit.rest.issues.create({
         owner: context.repo.owner,
         repo: context.repo.repo,

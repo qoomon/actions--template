@@ -2,10 +2,12 @@ import * as core from '@actions/core'
 import {InputOptions} from '@actions/core'
 import * as _exec from '@actions/exec'
 import {z, ZodSchema} from 'zod'
-import {Context} from "@actions/github/lib/context";
-import process from "node:process";
+import {Context} from '@actions/github/lib/context';
+import process from 'node:process';
 import {getFlatValues, JsonObject, JsonObjectSchema, JsonTransformer} from './common.js';
-import * as github from "@actions/github";
+import * as github from '@actions/github';
+import {Deployment} from '@octokit/graphql-schema';
+import {GitHub} from "@actions/github/lib/utils";
 
 export const context = enhancedContext()
 
@@ -39,28 +41,71 @@ export function run(action: () => Promise<void>): void {
 }
 
 /**
- * Gets string value of an input.
+ * {@link  core.getInput}
  *
  * @param name - input name
  * @param options - input options
- * @returns input value or undefined if value is not set or empty
+ * @returns input value
  */
-export function getInput(name: string, options?: core.InputOptions): string | undefined
+export function getInput(
+    name: string,
+    options: core.InputOptions & { required: true },
+): string
 /**
- * Gets string value of an input.
+ * {@link  core.getInput}
+ *
+ * @param name - input name
+ * @param options - input options
+ * @returns input value
+ */
+export function getInput(
+    name: string,
+    options?: core.InputOptions,
+): string | undefined
+
+/**
+ * {@link  core.getInput}
+ *
+ * @param name - input name
+ * @param options - input options
+ * @param schema - input schema
+ * @returns input value
+ */
+export function getInput<T extends ZodSchema>(
+    name: string,
+    options: core.InputOptions & { required: true },
+    schema: T
+): z.infer<T>
+
+/**
+ * {@link  core.getInput}
+ *
+ * @param name - input name
+ * @param options - input options
+ * @param schema - input schema
+ * @returns input value
+ */
+export function getInput<T extends ZodSchema>(
+    name: string, options: core.InputOptions, schema: T
+): z.infer<T> | undefined
+
+/**
+ * {@link  core.getInput}
  *
  * @param name - input name
  * @param schema - input schema
- * @param options - input options
- * @returns parsed input value or undefined if value is not set or empty
+ * @returns input value
  */
-export function getInput<T extends ZodSchema>(name: string, schema: T, options?: InputOptions): z.infer<T> | undefined
-export function getInput<T extends ZodSchema>(name: string, schema_options?: T | InputOptions , options?: InputOptions): string | z.infer<T> | undefined {
-  let schema: T | undefined
-  if(schema_options instanceof ZodSchema){
-    schema = schema_options
+export function getInput<T extends ZodSchema>(
+    name: string, schema: T
+): z.infer<T> | undefined
+
+export function getInput<T extends ZodSchema>(name: string, options_schema?: InputOptions | T, schema?: T): string | z.infer<T> | undefined {
+  let options: InputOptions | undefined
+  if (options_schema instanceof ZodSchema) {
+    schema = options_schema
   } else {
-    options = schema_options
+    options = options_schema
   }
 
   const input = core.getInput(name, options)
@@ -126,11 +171,19 @@ export interface ExecResult {
 function enhancedContext() {
   const context = github.context
 
+  const repository = `${context.repo.owner}/${context.repo.repo}`;
+  const runAttempt = parseInt(process.env.GITHUB_RUN_ATTEMPT!, 10);
+  const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}` +
+      (runAttempt ? `/attempts/${runAttempt}` : '');
+  const runnerName = process.env.RUNNER_NAME!;
+  const runnerTempDir = process.env.RUNNER_TEMP!;
+
   const additionalContext = {
-    repository: `${context.repo.owner}/${context.repo.repo}`,
-    runAttempt: parseInt(process.env.GITHUB_RUN_ATTEMPT!, 10),
-    runnerName: process.env.RUNNER_NAME!,
-    runnerTemp: process.env.RUNNER_TEMP!,
+    repository,
+    runAttempt,
+    runUrl,
+    runnerName,
+    runnerTempDir,
   };
 
   return new Proxy(context, {
@@ -199,12 +252,14 @@ const WorkflowContextParser = z.string()
     .pipe(z.array(WorkflowContextSchema))
 
 
+let _jobObject: Awaited<ReturnType<typeof getJobObject>>
+
 /**
  * Get the current job from the workflow run
  * @returns the current job
  */
-export async function getJobObject(): Promise<Exclude<typeof jobObject, undefined>> {
-  const octokit = github.getOctokit(process.env.GITHUB_TOKEN!);
+export async function getJobObject(octokit: InstanceType<typeof GitHub>): Promise<typeof jobObject> {
+  if (_jobObject) return _jobObject
 
   const workflowRunJobs = await octokit.paginate(octokit.rest.actions.listJobsForWorkflowRunAttempt, {
     ...context.repo,
@@ -219,18 +274,110 @@ export async function getJobObject(): Promise<Exclude<typeof jobObject, undefine
 
   const absoluteJobName = getAbsoluteJobName({
     job: context.job,
-    matrix: getInput('matrix', JobMatrixParser),
+    matrix: getInput('#matrix', JobMatrixParser),
     workflowContextChain: getInput('workflow-context', WorkflowContextParser),
   })
 
-  const jobObject = workflowRunJobs.find((job) => job.name === absoluteJobName)
-  if (!jobObject) {
+  const currentJob = workflowRunJobs.find((job) => job.name === absoluteJobName)
+  if (!currentJob) {
     throw new Error(`Current job '${absoluteJobName}' could not be found in workflow run.\n` +
         'If this action is used within a reusable workflow, ensure that ' +
-        'action input \'workflow-context\' is set correctly and ' +
-        'the \'workflow-context\' job name matches the job name of the job name that uses the reusable workflow.')
+        'action input \'#workflow-context\' is set correctly and ' +
+        'the \'#workflow-context\' job name matches the job name of the job name that uses the reusable workflow.')
+    // TODO better error message
   }
-  return jobObject
+
+  const jobObject = {...currentJob,}
+  return _jobObject = jobObject;
+}
+
+let _deploymentObject: Awaited<ReturnType<typeof getDeploymentObject>>
+
+/**
+ * Get the current deployment from the workflow run
+ * @returns the current deployment or undefined
+ */
+export async function getDeploymentObject(octokit: InstanceType<typeof GitHub>): Promise<typeof deploymentObject | undefined> {
+  if (_deploymentObject) return _deploymentObject
+
+  const job = await getJobObject(octokit)
+
+  // --- get deployments for current sha
+  const potentialDeploymentsFromRestApi = await octokit.rest.repos.listDeployments({
+    ...context.repo,
+    sha: context.sha,
+    task: 'deploy',
+    per_page: 100,
+  }).catch((error) => {
+    if (error.status === 403) {
+      throwPermissionError({scope: 'deployments', permission: 'read'}, error)
+    }
+    throw error
+  }).then(({data: deployments}) =>
+      deployments.filter((deployment) => deployment.performed_via_github_app?.slug === 'github-actions'))
+
+  // --- get deployment workflow job run id
+  // noinspection GraphQLUnresolvedReference
+  const potentialDeploymentsFromGrapqlApi = await octokit.graphql<{ nodes: Deployment[] }>(`
+    query ($ids: [ID!]!) {
+      nodes(ids: $ids) {
+        ... on Deployment {
+          databaseId,
+          commitOid
+          createdAt
+          task
+          state
+          latestEnvironment
+          latestStatus {
+            logUrl
+            environmentUrl
+          }
+        }
+      }
+    }`, {
+    ids: potentialDeploymentsFromRestApi.map(({node_id}) => node_id),
+  }).then(({nodes: deployments}) => deployments
+      // filter is probably not needed due to check log url to match run id and job id
+      .filter((deployment) => deployment.commitOid === context.sha)
+      .filter((deployment) => deployment.task === 'deploy')
+      .filter((deployment) => deployment.state === 'IN_PROGRESS'))
+
+  const currentDeployment = potentialDeploymentsFromGrapqlApi.find((deployment) => {
+    if (!deployment.latestStatus?.logUrl) return false
+    const logUrl = new URL(deployment.latestStatus.logUrl)
+
+    if (logUrl.origin !== context.serverUrl) return false
+
+    const pathnameMatch = logUrl.pathname
+        .match(/\/(?<repository>[^/]+\/[^/]+)\/actions\/runs\/(?<run_id>[^/]+)\/job\/(?<job_id>[^/]+)/)
+
+    return pathnameMatch &&
+        pathnameMatch.groups?.repository === `${context.repo.owner}/${context.repo.repo}` &&
+        pathnameMatch.groups?.run_id === context.runId.toString() &&
+        pathnameMatch.groups?.job_id === job.id.toString()
+  })
+
+  if (!currentDeployment) return undefined
+
+  const currentDeploymentUrl =
+      // eslint-disable-next-line max-len
+      `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/deployments/${currentDeployment.latestEnvironment}`
+  const currentDeploymentWorkflowUrl =
+      `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+
+  const deploymentObject = {
+    ...currentDeployment,
+    databaseId: undefined,
+    latestEnvironment: undefined,
+    latestStatus: undefined,
+    id: currentDeployment.databaseId!,
+    url: currentDeploymentUrl,
+    workflowUrl: currentDeploymentWorkflowUrl,
+    logUrl: currentDeployment.latestStatus!.logUrl! as string,
+    environment: currentDeployment.latestEnvironment!,
+    environmentUrl: currentDeployment.latestStatus!.environmentUrl as string || undefined,
+  }
+  return _deploymentObject = deploymentObject
 }
 
 /**
