@@ -2,13 +2,14 @@ import {z} from "zod";
 import YAML from "yaml";
 
 export type JsonLiteral = string | number | boolean | null
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions, @typescript-eslint/consistent-indexed-object-style
 export type JsonObject = { [key: string]: Json };
 export type Json = JsonLiteral | JsonObject | Json[]
 export const LiteralSchema: z.ZodType<JsonLiteral> = z.union([z.string(), z.number(), z.boolean(), z.null()])
 export const JsonSchema: z.ZodType<Json> = z.lazy(() => z.union([LiteralSchema, JsonObjectSchema, z.array(JsonSchema)]))
 export const JsonObjectSchema: z.ZodType<JsonObject> = z.record(JsonSchema)
 
-export const JsonTransformer = z.string().transform((str, ctx) => {
+export const JsonParser = z.string().transform((str, ctx) => {
   try {
     return JSON.parse(str) as Json
   } catch (error: unknown) {
@@ -17,7 +18,7 @@ export const JsonTransformer = z.string().transform((str, ctx) => {
   }
 })
 
-export const YamlTransformer = z.string().transform((str, ctx) => {
+export const YamlParser = z.string().transform((str, ctx) => {
   try {
     return YAML.parse(str)
   } catch (error: unknown) {
@@ -49,4 +50,12 @@ export function getFlatValues(values: unknown): unknown[] {
   }
 
   return getFlatValues(Object.values(values))
+}
+
+/**
+ * Throws an error
+ * @param error
+ */
+export function _throw(error: unknown): never {
+  throw error
 }

@@ -8,7 +8,7 @@ A template for creating new TypeScript GitHub Actions
 - run `npm install`
 - edit `action.yml` to adjust action metadata
 - edit `README.md` to describe the action
-- edit `index.ts` to implement the action
+- edit `main.ts` to implement the action
 - optional - try your action localy with
   - adjust `local-run-action.ts`
   - run `npm run ts-node -- local-run-action.ts`
@@ -18,7 +18,7 @@ A template for creating new TypeScript GitHub Actions
     ```yaml
       - uses: <OWNER>/<REPO>@main
     ```
-    
+
 #### Release New Action Version
 - Trigger the [Release workflow](../../actions/workflows/release.yaml)
   - The workflow will create a new release with the given version and also move the related major version tag e.g. `v1` to point to this new release

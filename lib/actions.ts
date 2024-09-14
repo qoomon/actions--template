@@ -4,10 +4,12 @@ import * as _exec from '@actions/exec'
 import {z, ZodSchema} from 'zod'
 import {Context} from '@actions/github/lib/context';
 import process from 'node:process';
-import {getFlatValues, JsonObject, JsonObjectSchema, JsonTransformer} from './common.js';
+import {_throw, getFlatValues, JsonObject, JsonObjectSchema, JsonParser} from './common.js';
 import * as github from '@actions/github';
 import {Deployment} from '@octokit/graphql-schema';
 import {GitHub} from "@actions/github/lib/utils";
+import {getWorkflowRunHtmlUrl} from "./github.js";
+import YAML from "yaml";
 
 export const context = enhancedContext()
 
@@ -21,20 +23,18 @@ export const bot = {
 
 /**
  * Run action and catch errors
- * @param action - action to run
- * @returns void
+ * @param fn - action function to run
+ * @returns action function with error handling
  */
-export function run(action: () => Promise<void>): void {
-  action().catch(async (error: unknown) => {
+export function action(fn: () => Promise<void>): () => Promise<void> {
+  return () => fn().catch(async (error: unknown) => {
     let failedMessage = 'Unhandled error, see job logs'
-    if (error != null && typeof error === 'object' &&
-        'message' in error && error.message != null) {
+    if (error != null && typeof error === 'object' && 'message' in error && error.message != null) {
       failedMessage = error.message.toString()
     }
     core.setFailed(failedMessage)
 
-    if (error != null && typeof error === 'object' &&
-        'stack' in error) {
+    if (error != null && typeof error === 'object' && 'stack' in error) {
       console.error(error.stack)
     }
   })
@@ -100,8 +100,11 @@ export function getInput<T extends ZodSchema>(
     name: string, schema: T
 ): z.infer<T> | undefined
 
-export function getInput<T extends ZodSchema>(name: string, options_schema?: InputOptions | T, schema?: T): string | z.infer<T> | undefined {
+export function getInput<T extends ZodSchema>(
+    name: string, options_schema?: InputOptions | T, schema?: T
+): string | z.infer<T> | undefined {
   let options: InputOptions | undefined
+  // noinspection SuspiciousTypeOfGuard
   if (options_schema instanceof ZodSchema) {
     schema = options_schema
   } else {
@@ -112,10 +115,32 @@ export function getInput<T extends ZodSchema>(name: string, options_schema?: Inp
   if (!input) return undefined
   if (!schema) return input
 
-  const parseResult = schema.safeParse(input)
+  let parseResult = schema.safeParse(input)
+  if (parseResult.error) {
+    const initialIssue = parseResult.error.issues.at(0);
+    if (initialIssue?.code === "invalid_type" &&
+        initialIssue.received === "string" &&
+        initialIssue.expected !== "string"
+    ) {
+      // try parse as yaml/json
+      parseResult = z.string().transform((val, ctx) => {
+        try {
+          return YAML.parse(val);
+        } catch {
+          ctx.addIssue({
+            code: z.ZodIssueCode.invalid_type,
+            expected: initialIssue.expected,
+            received: 'unknown',
+          })
+          return z.NEVER;
+        }
+      }).pipe(schema).safeParse(input);
+    }
+  }
+
   if (parseResult.error) {
     const issues = parseResult.error.issues.map(formatZodIssue)
-    throw new Error(`Invalid value for input '${name}': ${input}\n` +
+    throw new Error(`Invalid input value for \`${name}\`, received \`${input}\`\n` +
         issues.map((it) => `  - ${it}`).join('\n'))
   }
 
@@ -171,28 +196,38 @@ export interface ExecResult {
 function enhancedContext() {
   const context = github.context
 
-  const repository = `${context.repo.owner}/${context.repo.repo}`;
-  const runAttempt = parseInt(process.env.GITHUB_RUN_ATTEMPT!, 10);
-  const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}` +
+  const repository = () => `${context.repo.owner}/${context.repo.repo}`;
+  const runAttempt = () => parseInt(
+      process.env.GITHUB_RUN_ATTEMPT ?? _throw(new Error('Missing environment variable: GITHUB_RUN_ATTEMPT')),
+      10);
+  const runUrl = () => `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}` +
       (runAttempt ? `/attempts/${runAttempt}` : '');
-  const runnerName = process.env.RUNNER_NAME!;
-  const runnerTempDir = process.env.RUNNER_TEMP!;
+  const runnerName = () => process.env.RUNNER_NAME ?? _throw(new Error('Missing environment variable: RUNNER_NAME'));
+  const runnerTempDir = () => process.env.RUNNER_TEMP ?? _throw(new Error('Missing environment variable: RUNNER_TEMP'));
 
   const additionalContext = {
-    repository,
-    runAttempt,
-    runUrl,
-    runnerName,
-    runnerTempDir,
-  };
+    get repository() {
+      return repository();
+    },
+    get runAttempt() {
+      return runAttempt();
+    },
+    get runUrl() {
+      return runUrl();
+    },
+    get runnerName() {
+      return runnerName();
+    },
+    get runnerTempDir() {
+      return runnerTempDir();
+    },
+  }
 
   return new Proxy(context, {
-    get(context, prop, receiver) {
+    get(context: Context, prop) {
       return prop in context
-          // @ts-ignore
-          ? context[prop]
-          // @ts-ignore
-          : additionalContext[prop];
+          ? context[prop as keyof Context]
+          : additionalContext[prop as keyof typeof additionalContext];
     },
   }) as Context & typeof additionalContext
 }
@@ -218,8 +253,6 @@ function getAbsoluteJobName({job, matrix, workflowContextChain}: {
   return actualJobName
 }
 
-const JobMatrixParser = JsonTransformer.pipe(JsonObjectSchema.nullable())
-
 const WorkflowContextSchema = z.object({
   job: z.string(),
   matrix: JsonObjectSchema.nullable(),
@@ -228,7 +261,8 @@ const WorkflowContextSchema = z.object({
 type WorkflowContext = z.infer<typeof WorkflowContextSchema>
 
 const WorkflowContextParser = z.string()
-    .transform((str, ctx) => JsonTransformer.parse(`[${str}]`, ctx))
+    .transform((str) => `[${str}]`)
+    .transform(JsonParser.parse)
     .pipe(z.array(z.union([z.string(), JsonObjectSchema]).nullable()))
     .transform((contextChainArray, ctx) => {
       const contextChain: unknown[] = []
@@ -242,7 +276,7 @@ const WorkflowContextParser = z.string()
           return z.NEVER
         }
         let matrix;
-        if (typeof contextChainArray[0] === 'object') {
+        if (typeof contextChainArray.at(0) === 'object') {
           matrix = contextChainArray.shift()
         }
         contextChain.push({job, matrix})
@@ -274,7 +308,7 @@ export async function getJobObject(octokit: InstanceType<typeof GitHub>): Promis
 
   const absoluteJobName = getAbsoluteJobName({
     job: context.job,
-    matrix: getInput('#matrix', JobMatrixParser),
+    matrix: getInput('#matrix', JsonObjectSchema.nullable()),
     workflowContextChain: getInput('workflow-context', WorkflowContextParser),
   })
 
@@ -282,9 +316,10 @@ export async function getJobObject(octokit: InstanceType<typeof GitHub>): Promis
   if (!currentJob) {
     throw new Error(`Current job '${absoluteJobName}' could not be found in workflow run.\n` +
         'If this action is used within a reusable workflow, ensure that ' +
-        'action input \'#workflow-context\' is set correctly and ' +
-        'the \'#workflow-context\' job name matches the job name of the job name that uses the reusable workflow.')
-    // TODO better error message
+        'action input \'workflow-context\' is set to ${{ inputs.workflow-context }}' +
+        'and workflow input \'workflow-context\' was set to \'"CALLER_JOB_NAME", ${{ toJSON(matrix) }}\'' +
+        'or \'"CALLER_JOB_NAME", ${{ toJSON(matrix) }}, ${{ inputs.workflow-context }}\' in case of a nested workflow.'
+    )
   }
 
   const jobObject = {...currentJob,}
@@ -297,7 +332,9 @@ let _deploymentObject: Awaited<ReturnType<typeof getDeploymentObject>>
  * Get the current deployment from the workflow run
  * @returns the current deployment or undefined
  */
-export async function getDeploymentObject(octokit: InstanceType<typeof GitHub>): Promise<typeof deploymentObject | undefined> {
+export async function getDeploymentObject(
+    octokit: InstanceType<typeof GitHub>
+): Promise<typeof deploymentObject | undefined> {
   if (_deploymentObject) return _deploymentObject
 
   const job = await getJobObject(octokit)
@@ -318,7 +355,7 @@ export async function getDeploymentObject(octokit: InstanceType<typeof GitHub>):
 
   // --- get deployment workflow job run id
   // noinspection GraphQLUnresolvedReference
-  const potentialDeploymentsFromGrapqlApi = await octokit.graphql<{ nodes: Deployment[] }>(`
+  const potentialDeploymentsFromGraphqlApi = await octokit.graphql<{ nodes: Deployment[] }>(`
     query ($ids: [ID!]!) {
       nodes(ids: $ids) {
         ... on Deployment {
@@ -342,7 +379,7 @@ export async function getDeploymentObject(octokit: InstanceType<typeof GitHub>):
       .filter((deployment) => deployment.task === 'deploy')
       .filter((deployment) => deployment.state === 'IN_PROGRESS'))
 
-  const currentDeployment = potentialDeploymentsFromGrapqlApi.find((deployment) => {
+  const currentDeployment = potentialDeploymentsFromGraphqlApi.find((deployment) => {
     if (!deployment.latestStatus?.logUrl) return false
     const logUrl = new URL(deployment.latestStatus.logUrl)
 
@@ -362,20 +399,26 @@ export async function getDeploymentObject(octokit: InstanceType<typeof GitHub>):
   const currentDeploymentUrl =
       // eslint-disable-next-line max-len
       `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/deployments/${currentDeployment.latestEnvironment}`
-  const currentDeploymentWorkflowUrl =
-      `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+  const currentDeploymentWorkflowUrl = getWorkflowRunHtmlUrl(context);
+
+  if (!currentDeployment.latestStatus) {
+    _throw(new Error('Missing deployment latestStatus'))
+  }
+  if (!currentDeployment.latestEnvironment) {
+    _throw(new Error('Missing deployment latestEnvironment'))
+  }
 
   const deploymentObject = {
     ...currentDeployment,
     databaseId: undefined,
     latestEnvironment: undefined,
     latestStatus: undefined,
-    id: currentDeployment.databaseId!,
+    id: currentDeployment.databaseId ?? _throw(new Error('Missing deployment databaseId')),
     url: currentDeploymentUrl,
     workflowUrl: currentDeploymentWorkflowUrl,
-    logUrl: currentDeployment.latestStatus!.logUrl! as string,
-    environment: currentDeployment.latestEnvironment!,
-    environmentUrl: currentDeployment.latestStatus!.environmentUrl as string || undefined,
+    logUrl: currentDeployment.latestStatus.logUrl as string || undefined,
+    environment: currentDeployment.latestEnvironment,
+    environmentUrl: currentDeployment.latestStatus.environmentUrl as string || undefined,
   }
   return _deploymentObject = deploymentObject
 }
@@ -393,6 +436,3 @@ export function throwPermissionError(permission: { scope: string; permission: st
       'https://docs.github.com/en/actions/security-guides/automatic-token-authentication#modifying-the-permissions-for-the-github_token',
       options)
 }
-
-
-// TODO function to store and read job state
