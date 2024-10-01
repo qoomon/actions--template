@@ -30604,8 +30604,8 @@ async function getJobObject(octokit) {
         throw error;
     });
     const absoluteJobName = getAbsoluteJobName({
-        job: context.job,
-        matrix: getInput('#matrix', JsonObjectSchema.nullable()),
+        job: getInput('job-name', { required: true }),
+        matrix: getInput('#job-matrix', JsonObjectSchema.nullable()),
         workflowContextChain: getInput('workflow-context', WorkflowContextParser),
     });
     const currentJob = workflowRunJobs.find((job) => job.name === absoluteJobName);

@@ -307,8 +307,8 @@ export async function getJobObject(octokit: InstanceType<typeof GitHub>): Promis
   })
 
   const absoluteJobName = getAbsoluteJobName({
-    job: context.job,
-    matrix: getInput('#matrix', JsonObjectSchema.nullable()),
+    job: getInput('job-name', {required: true}),
+    matrix: getInput('#job-matrix', JsonObjectSchema.nullable()),
     workflowContextChain: getInput('workflow-context', WorkflowContextParser),
   })
 
