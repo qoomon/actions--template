@@ -14,7 +14,7 @@
     "@actions/http-client": "^2.2.2",
     "@octokit/graphql-schema": "^15.25.0",
     "yaml": "^2.5.0",
-    "zod": "^3.23.8"
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
