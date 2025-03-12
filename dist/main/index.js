@@ -30047,7 +30047,7 @@ const context = (() => {
     });
 })();
 if (lib_core.isDebug()) {
-    lib_core.debug(`github.context: ${JSON.stringify(context)}`);
+    lib_core.debug(`github.context: ${JSON.stringify(context, null, 2)}`);
 }
 /**
  * Get the current job from the workflow run
@@ -30068,14 +30068,14 @@ async function getCurrentJob(octokit) {
             await sleep(retryDelay);
         core.debug(`Try to determine current job, attempt ${retryAttempt}/${retryMaxAttempts}`);
         const currentWorkflowRunJobs = await listJobsForCurrentWorkflowRun();
-        core.debug(`runner_name: ${context.runnerName}\n` + 'workflow_run_jobs:' + JSON.stringify(currentWorkflowRunJobs));
+        core.debug(`runner_name: ${context.runnerName}\n` + 'workflow_run_jobs:' + JSON.stringify(currentWorkflowRunJobs, null, 2));
         const currentJobs = currentWorkflowRunJobs
             .filter((job) => job.status === "in_progress")
             .filter((job) => (job.runner_name === context.runnerName) ||
             (job.runner_name === "GitHub Actions" && job.runner_id === runnerId));
         if (currentJobs.length === 1) {
             currentJob = currentJobs[0];
-            core.debug('job:' + JSON.stringify(currentJob));
+            core.debug('job:' + JSON.stringify(currentJob, null, 2));
         }
         else {
             if (currentJobs.length === 0) {
