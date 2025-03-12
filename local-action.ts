@@ -1,5 +1,5 @@
 import process from 'node:process';
-import {run as mainAction} from './src/main.js';
+import {action} from './src/main.js';
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -15,7 +15,7 @@ setActionInputs({
 });
 
 // Run the action
-await mainAction();
+await action();
 
 /**
  * Set action input environment variables

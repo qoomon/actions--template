@@ -2,25 +2,25 @@ import {z} from "zod";
 import YAML from "yaml";
 
 export type JsonLiteral = string | number | boolean | null
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions, @typescript-eslint/consistent-indexed-object-style
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type JsonObject = { [key: string]: Json };
 export type Json = JsonLiteral | JsonObject | Json[]
 export const LiteralSchema: z.ZodType<JsonLiteral> = z.union([z.string(), z.number(), z.boolean(), z.null()])
 export const JsonSchema: z.ZodType<Json> = z.lazy(() => z.union([LiteralSchema, JsonObjectSchema, z.array(JsonSchema)]))
 export const JsonObjectSchema: z.ZodType<JsonObject> = z.record(JsonSchema)
 
-export const JsonParser = z.string().transform((str, ctx) => {
+export const YamlParser = z.string().transform((str, ctx) => {
   try {
-    return JSON.parse(str) as Json
+    return YAML.parse(str) as Json
   } catch (error: unknown) {
     ctx.addIssue({code: 'custom', message: (error as { message?: string }).message})
     return z.NEVER
   }
 })
 
-export const YamlParser = z.string().transform((str, ctx) => {
+export const JsonParser = z.string().transform((str, ctx) => {
   try {
-    return YAML.parse(str)
+    return YAML.parse(str) as Json
   } catch (error: unknown) {
     ctx.addIssue({code: 'custom', message: (error as { message?: string }).message})
     return z.NEVER

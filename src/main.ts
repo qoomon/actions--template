@@ -2,11 +2,11 @@ import * as core from '@actions/core'
 // import * as github from '@actions/github'
 import {HttpClient} from '@actions/http-client'
 // see https://github.com/actions/toolkit for more GitHub actions libraries
-import {action, context, getInput} from '../lib/actions.js'
+import {context, getInput, run} from '../lib/actions.js'
 import {z} from 'zod'
 import {fileURLToPath} from 'url'
 
-export const run = action(async () => {
+export const action =  () => run(async () => {
   core.info(`Repository: ${context.repository}`)
 
   const inputs = {
@@ -46,7 +46,9 @@ export const run = action(async () => {
   // core.setOutput(key,value)
 })
 
+// --- main ---
+
 // Execute the action, if running as the main module
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  await run()
+  await action()
 }
