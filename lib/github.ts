@@ -1,7 +1,7 @@
 import {GitHub} from "@actions/github/lib/utils";
 
 /**
- * Parse repository string to owner and repo
+ * Parse repository string to the owner and repo
  * @param repository - repository string e.g. 'spongebob/sandbox'
  * @return object with owner and repo
  */

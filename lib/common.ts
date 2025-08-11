@@ -1,4 +1,4 @@
-import {z} from "zod";
+import {keyof, z} from 'zod'
 import YAML from "yaml";
 
 export type JsonLiteral = string | number | boolean | null
@@ -7,7 +7,7 @@ export type JsonObject = { [key: string]: Json };
 export type Json = JsonLiteral | JsonObject | Json[]
 export const LiteralSchema: z.ZodType<JsonLiteral> = z.union([z.string(), z.number(), z.boolean(), z.null()])
 export const JsonSchema: z.ZodType<Json> = z.lazy(() => z.union([LiteralSchema, JsonObjectSchema, z.array(JsonSchema)]))
-export const JsonObjectSchema: z.ZodType<JsonObject> = z.record(JsonSchema)
+export const JsonObjectSchema: z.ZodType<JsonObject> = z.record(z.union([z.string(), z.number()]), JsonSchema)
 
 export const YamlParser = z.string().transform((str, ctx) => {
   try {
