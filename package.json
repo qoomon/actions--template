@@ -11,7 +11,7 @@
     "@actions/core": "^1.11.1",
     "@actions/exec": "^1.1.1",
     "@actions/github": "^6.0.1",
-    "@actions/http-client": "^2.2.2",
+    "@actions/http-client": "^3.0.0",
     "@octokit/graphql-schema": "^15.26.0",
     "yaml": "^2.8.1",
     "zod": "^4.1.13"
