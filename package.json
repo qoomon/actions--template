@@ -10,7 +10,7 @@
   "dependencies": {
     "@actions/core": "^2.0.2",
     "@actions/exec": "^2.0.0",
-    "@actions/github": "^7.0.0",
+    "@actions/github": "^9.0.0",
     "@actions/http-client": "^3.0.0",
     "@octokit/graphql-schema": "^15.26.1",
     "yaml": "^2.8.2",
